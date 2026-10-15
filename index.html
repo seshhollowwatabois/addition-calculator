@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0f19">
+  <title>Delivery Addition Calculator</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0b0f19; --panel:#151b29; --panel2:#1d2638; --text:#f4f7fb; --muted:#9aa8bd; --blue:#009de0; --green:#30d69a; --red:#ff7078; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; padding:24px 16px; display:grid; place-items:center; background:radial-gradient(ellipse at top, #15243a 0%, var(--bg) 58%); color:var(--text); font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    .app { width:min(100%,460px); }
+    .header { text-align:center; margin-bottom:24px; }
+    .logo { width:54px;height:54px;margin:0 auto 14px;border-radius:17px;background:var(--blue);display:grid;place-items:center;font-size:27px;font-weight:900;box-shadow:0 8px 30px #009de044; }
+    h1 { font-size:26px; margin:0 0 8px; letter-spacing:-.7px; }
+    .subtitle { margin:0;color:var(--muted);font-size:14px; }
+    .card { background:rgba(21,27,41,.96); border:1px solid #29344a; border-radius:22px; padding:22px; box-shadow:0 20px 60px #0003; }
+    label { display:block;font-size:14px;font-weight:650;margin-bottom:10px; }
+    .input-wrap { display:flex;align-items:center;gap:10px;background:#0d1320;border:1px solid #344158;border-radius:14px;padding:0 15px;transition:border-color .2s; }
+    .input-wrap:focus-within { border-color:var(--blue);box-shadow:0 0 0 3px #009de022; }
+    input { min-width:0;width:100%;background:transparent;border:0;outline:0;color:var(--text);font-size:25px;font-weight:700;padding:16px 0; }
+    .unit { color:var(--muted);font-size:14px;font-weight:700; }
+    .hint { margin:9px 0 18px;color:var(--muted);font-size:12px;line-height:1.5; }
+    .base-button { width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid #3b4a62;background:var(--panel2);color:var(--text);padding:15px 16px;border-radius:14px;font-size:15px;font-weight:750;cursor:pointer;transition:all .18s; }
+    .base-button .amount { color:var(--green); }
+    .base-button[aria-pressed="true"] { border-color:var(--green);background:#15352f; }
+    .toggle { flex:0 0 42px;width:42px;height:24px;border-radius:20px;background:#526076;position:relative; }
+    .toggle::after { content:"";position:absolute;width:18px;height:18px;top:3px;left:3px;border-radius:50%;background:white;transition:transform .18s; }
+    .base-button[aria-pressed="true"] .toggle { background:var(--green); }
+    .base-button[aria-pressed="true"] .toggle::after { transform:translateX(18px); }
+    .result { margin-top:20px;padding:20px;border-radius:16px;background:#0d1320;border:1px solid #27354a; }
+    .result-label { color:var(--muted);font-size:13px;font-weight:650;margin-bottom:8px; }
+    .total { font-size:42px;line-height:1.1;font-weight:850;letter-spacing:-1.3px; }
+    .breakdown { display:flex;justify-content:space-between;gap:12px;margin-top:17px;padding-top:14px;border-top:1px solid #273247;color:var(--muted);font-size:13px; }
+    .breakdown strong { color:var(--text);font-weight:700; }
+    .message { min-height:20px;margin:12px 2px 0;font-size:13px;color:var(--red); }
+    .foot { text-align:center;margin-top:18px;color:#718098;font-size:12px;line-height:1.6; }
+    @media(max-width:380px){.card{padding:17px}.total{font-size:36px}h1{font-size:23px}}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="header">
+      <div class="logo" aria-hidden="true">₾</div>
+      <h1>Delivery Addition</h1>
+      <p class="subtitle">Calculate your delivery addition in GEL</p>
+    </header>
+    <section class="card" aria-label="Delivery calculator">
+      <label for="distance">Delivery distance</label>
+      <div class="input-wrap">
+        <input id="distance" type="number" inputmode="numeric" min="500" step="1" placeholder="Enter meters" autocomplete="off">
+        <span class="unit">METERS</span>
+      </div>
+      <p class="hint">Minimum valid distance: 500 m. Amounts round up to the next ₾0.10.</p>
+      <button class="base-button" id="baseFee" type="button" aria-pressed="false">
+        <span>Add base delivery fee <span class="amount">+₾3.00</span></span>
+        <span class="toggle" aria-hidden="true"></span>
+      </button>
+      <div class="result" aria-live="polite">
+        <div class="result-label">TOTAL ADDITION</div>
+        <div class="total" id="total">—</div>
+        <div class="breakdown">
+          <span>Distance addition</span><strong id="distanceAmount">—</strong>
+        </div>
+        <div class="breakdown" style="margin-top:10px;padding-top:10px">
+          <span>Base delivery fee</span><strong id="baseAmount">₾0.00</strong>
+        </div>
+      </div>
+      <p class="message" id="message" role="status">Enter a distance of at least 500 meters.</p>
+    </section>
+    <p class="foot">Below 500 m: not valid · 500–1,599 m: ₾1.00<br>From 1,600 m: (distance − 500) ÷ 1,000, rounded up to ₾0.10</p>
+  </main>
+  <script>
+    const distanceInput = document.getElementById('distance');
+    const baseButton = document.getElementById('baseFee');
+    const totalEl = document.getElementById('total');
+    const distanceAmountEl = document.getElementById('distanceAmount');
+    const baseAmountEl = document.getElementById('baseAmount');
+    const messageEl = document.getElementById('message');
+    let includeBaseFee = false;
+
+    const money = amount => '₾' + amount.toFixed(2);
+
+    function calculate() {
+      const raw = distanceInput.value.trim();
+      const distance = Number(raw);
+      if (raw === '' || !Number.isFinite(distance)) {
+        totalEl.textContent = '—';
+        distanceAmountEl.textContent = '—';
+        baseAmountEl.textContent = includeBaseFee ? '₾3.00' : '₾0.00';
+        messageEl.textContent = 'Enter a distance of at least 500 meters.';
+        return;
+      }
+      if (distance < 500) {
+        totalEl.textContent = '—';
+        distanceAmountEl.textContent = '—';
+        baseAmountEl.textContent = includeBaseFee ? '₾3.00' : '₾0.00';
+        messageEl.textContent = 'Distance below 500 m cannot be calculated.';
+        return;
+      }
+      let addition;
+      if (distance < 1600) {
+        addition = 1;
+      } else {
+        // Work in integer tetri to avoid floating-point rounding surprises.
+        addition = Math.ceil(((distance - 500) / 1000) * 10 - 1e-10) / 10;
+      }
+      const baseFee = includeBaseFee ? 3 : 0;
+      totalEl.textContent = money(addition + baseFee);
+      distanceAmountEl.textContent = money(addition);
+      baseAmountEl.textContent = money(baseFee);
+      messageEl.textContent = '';
+    }
+
+    baseButton.addEventListener('click', () => {
+      includeBaseFee = !includeBaseFee;
+      baseButton.setAttribute('aria-pressed', String(includeBaseFee));
+      calculate();
+    });
+    distanceInput.addEventListener('input', calculate);
+  </script>
+</body>
+</html>
